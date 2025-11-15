@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "773504001413",
+    "project_id": "supervision-infanti-meko",
+    "storage_bucket": "supervision-infanti-meko.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773504001413:android:6cc499dbcfe207504dd0ec",
+        "android_client_info": {
+          "package_name": "com.example.control_tiempo_infantes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZGOKvNifeI3BFAju80KzqdHH-lf154JQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
