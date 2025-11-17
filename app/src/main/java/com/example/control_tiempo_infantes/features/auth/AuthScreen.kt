@@ -3,47 +3,25 @@ package com.example.control_tiempo_infantes.features.auth
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 
-/**
- * HU-01 – Login sin forzar verificación.
- */
 @Composable
-fun AuthScreen(
-    onLoggedIn: () -> Unit,
-    onGoToRegister: () -> Unit,
-    vm: AuthViewModel
-) {
+fun AuthScreen(onLoggedIn: () -> Unit, onGoToRegister: () -> Unit, vm: AuthViewModel) {
+    val loading by vm.loading.collectAsState()
     var email by remember { mutableStateOf("") }
-    var pass  by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
+    var pass by remember { mutableStateOf("") }
+    var err by remember { mutableStateOf<String?>(null) }
 
-    fun handle(msg: String?) { if (msg == null) onLoggedIn() else error = msg }
-
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Acceso", style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Correo") })
-            OutlinedTextField(
-                value = pass,
-                onValueChange = { pass = it },
-                label = { Text("Contraseña") },
-                visualTransformation = PasswordVisualTransformation()
-            )
-            if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error)
-
-            Button(
-                onClick = { vm.login(email, pass, ::handle) },
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Iniciar sesión") }
-
-            TextButton(onClick = onGoToRegister, modifier = Modifier.align(Alignment.End)) {
-                Text("Crear cuenta", textDecoration = TextDecoration.Underline)
-            }
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+        Text("Iniciar sesión", style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Correo") })
+        OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Contraseña") })
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = { vm.login(email, pass) { e -> if (e == null) onLoggedIn() else err = e } }, enabled = !loading) {
+            Text("Entrar")
         }
+        TextButton(onClick = onGoToRegister) { Text("Crear cuenta") }
+        if (err != null) Text(err!!, color = MaterialTheme.colorScheme.error)
     }
 }

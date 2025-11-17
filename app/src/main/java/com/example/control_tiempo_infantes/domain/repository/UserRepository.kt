@@ -1,15 +1,11 @@
 package com.example.control_tiempo_infantes.domain.repository
 
-import com.google.firebase.Timestamp
-
-data class UserProfile(
-    val uid: String,
-    val email: String,
-    val displayName: String? = null,
-    val createdAt: Timestamp = Timestamp.now()
-)
+import com.example.control_tiempo_infantes.domain.model.UserProfile
+import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
-    suspend fun createIfMissing(uid: String, email: String, displayName: String?)
-    suspend fun getProfile(uid: String): UserProfile?
+    suspend fun createIfMissing(uid: String, email: String?, displayName: String?, role: String = "ADULT")
+    suspend fun get(uid: String): UserProfile?
+    fun observe(uid: String): Flow<UserProfile?>
+    suspend fun addCircleToUser(uid: String, circleId: String)
 }

@@ -17,9 +17,7 @@ fun CircleDetailScreen(
     vm: CircleDetailViewModel,
     circleId: String,
     onBack: () -> Unit,
-    onAddChild: () -> Unit,
-    onInviteMember: () -> Unit,
-    onOpenLinkDevice: (String) -> Unit
+    onAddChild: () -> Unit
 ) {
     LaunchedEffect(circleId) {
         vm.init(circleId)
@@ -48,11 +46,6 @@ fun CircleDetailScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver"
                         )
-                    }
-                },
-                actions = {
-                    TextButton(onClick = onInviteMember) {
-                        Text("Invitar miembro")
                     }
                 }
             )
@@ -98,22 +91,11 @@ fun CircleDetailScreen(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(text = "Edad: ${child.age}")
-
                                     Spacer(modifier = Modifier.height(8.dp))
-
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    TextButton(
+                                        onClick = { vm.generateLinkCode(child.id) }
                                     ) {
-                                        TextButton(
-                                            onClick = { vm.generateLinkCode(child.id) }
-                                        ) {
-                                            Text("Generar código")
-                                        }
-                                        TextButton(
-                                            onClick = { onOpenLinkDevice(child.id) }
-                                        ) {
-                                            Text("Vincular dispositivo")
-                                        }
+                                        Text("Generar código para vincular dispositivo")
                                     }
                                 }
                             }

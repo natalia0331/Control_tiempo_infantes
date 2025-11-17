@@ -10,11 +10,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-/**
- * HU-01. Login/Registro con verificación de email OPCIONAL.
- * (En este caso no bloqueamos el ingreso por verificación ni la usamos.)
- */
-class AuthRepositoryImpl @Inject constructor(   // <-- ya no es abstract
+class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
     private val users: UserRepository
 ) : AuthRepository {
@@ -28,42 +24,23 @@ class AuthRepositoryImpl @Inject constructor(   // <-- ya no es abstract
     override suspend fun login(email: String, password: String): Result<Unit> = runCatching {
         val res = auth.signInWithEmailAndPassword(email.trim(), password).await()
         val user = res.user ?: error("No user")
-
-        users.createIfMissing(
-            user.uid,
-            user.email ?: email,
-            user.displayName
-        )
-
-        Unit   // <-- importante para que Result sea Result.success(Unit)
+        // No exigimos verificación
+        users.createIfMissing(user.uid, user.email, user.displayName, role = "supervisor") // default; if user has role set in Firestore, createIfMissing won't overwrite
+        Unit
     }
 
-    override suspend fun register(
-        email: String,
-        password: String,
-        displayName: String?
-    ): Result<Unit> = runCatching {
-        val res = auth.createUserWithEmailAndPassword(email.trim(), password).await()
-        val user = res.user ?: error("No user")
+    override suspend fun register(email: String, password: String, displayName: String?, role: String): Result<Unit> =
+        runCatching {
+            val res = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+            val user = res.user ?: error("No user")
 
-        if (!displayName.isNullOrBlank()) {
-            val profile = userProfileChangeRequest {
-                this.displayName = displayName.trim()
+            if (!displayName.isNullOrBlank()) {
+                val profile = userProfileChangeRequest { this.displayName = displayName.trim() }
+                user.updateProfile(profile).await()
             }
-            user.updateProfile(profile).await()
+            users.createIfMissing(user.uid, user.email, user.displayName, role)
+            Unit
         }
 
-        users.createIfMissing(
-            user.uid,
-            user.email ?: email,
-            user.displayName ?: displayName
-        )
-
-        // no hacemos verificación de correo, solo dejamos el usuario creado
-        Unit   // <-- para cerrar el runCatching correctamente
-    }
-
-    override suspend fun logout() {
-        auth.signOut()
-    }
+    override suspend fun logout() { auth.signOut() }
 }
