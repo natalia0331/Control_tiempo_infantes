@@ -14,10 +14,17 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun HomeScreen(
+    displayName: String?,
     onOpenCircles: () -> Unit,
     onOpenInvitations: () -> Unit,
     onLogout: () -> Unit
 ) {
+    val saludo = if (!displayName.isNullOrBlank()) {
+        "Bienvenido de vuelta, $displayName"
+    } else {
+        "Bienvenido de vuelta"
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -25,7 +32,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Inicio",
+            text = saludo,
             style = MaterialTheme.typography.headlineSmall
         )
 
@@ -51,3 +58,4 @@ fun HomeScreen(
         }
     }
 }
+

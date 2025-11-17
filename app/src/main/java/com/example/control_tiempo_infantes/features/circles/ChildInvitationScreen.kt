@@ -2,6 +2,7 @@ package com.example.control_tiempo_infantes.features.circles
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -99,19 +101,51 @@ fun ChildInvitationsScreen(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = "Invitación al círculo: ${inv.circleId}",
+                                    text = inv.circleName ?: "Círculo familiar",
                                     style = MaterialTheme.typography.titleMedium
                                 )
+
                                 Text(
-                                    text = "Código: ${inv.code}",
+                                    text = "Te invita: ${inv.inviterName ?: "Supervisor"}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+
+                                inv.inviterEmail?.let { mail ->
+                                    Text(
+                                        text = "Correo: $mail",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+
+                                Text(
+                                    text = "Miembros actuales: ${inv.circleMembersCount ?: 0}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
+
+                                Text(
+                                    text = "Código de invitación: ${inv.code}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+
                                 Spacer(Modifier.padding(top = 4.dp))
-                                Button(
-                                    onClick = { vm.acceptInvitation(inv) },
-                                    modifier = Modifier.fillMaxWidth()
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text("Aceptar invitación")
+                                    Button(
+                                        onClick = { vm.acceptInvitation(inv) },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Aceptar")
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { vm.rejectInvitation(inv) },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Rechazar")
+                                    }
                                 }
                             }
                         }

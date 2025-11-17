@@ -40,7 +40,11 @@ class ChildInvitationsViewModel @Inject constructor(
                 return@launch
             }
 
-            _uiState.value = _uiState.value.copy(loading = true, error = null, message = null)
+            _uiState.value = _uiState.value.copy(
+                loading = true,
+                error = null,
+                message = null
+            )
 
             val list = repo.getPendingInvitationsForEmail(email)
 
@@ -55,31 +59,67 @@ class ChildInvitationsViewModel @Inject constructor(
     fun acceptInvitation(invitation: Invitation) {
         viewModelScope.launch {
             val userId = auth.currentUser?.uid
-            if (userId == null) {
+            val email = auth.currentUser?.email
+            if (userId == null || email.isNullOrBlank()) {
                 _uiState.value = _uiState.value.copy(
                     error = "Debes iniciar sesión para aceptar invitaciones."
                 )
                 return@launch
             }
 
-            _uiState.value = _uiState.value.copy(loading = true, error = null, message = null)
+            _uiState.value = _uiState.value.copy(
+                loading = true,
+                error = null,
+                message = null
+            )
 
             val ok = repo.acceptInvitation(invitation.code, userId)
 
             if (ok) {
-                // Recargar lista después de aceptar
-                val email = auth.currentUser?.email ?: ""
                 val list = repo.getPendingInvitationsForEmail(email)
-
                 _uiState.value = _uiState.value.copy(
                     loading = false,
                     invitations = list,
-                    message = "Invitación aceptada correctamente."
+                    message = "Invitación aceptada. Ahora perteneces al círculo."
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
                     loading = false,
                     error = "No se pudo aceptar la invitación (quizá ya fue usada o expiró)."
+                )
+            }
+        }
+    }
+
+    fun rejectInvitation(invitation: Invitation) {
+        viewModelScope.launch {
+            val email = auth.currentUser?.email
+            if (email.isNullOrBlank()) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Debes iniciar sesión para gestionar invitaciones."
+                )
+                return@launch
+            }
+
+            _uiState.value = _uiState.value.copy(
+                loading = true,
+                error = null,
+                message = null
+            )
+
+            val ok = repo.rejectInvitation(invitation.code)
+
+            if (ok) {
+                val list = repo.getPendingInvitationsForEmail(email)
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    invitations = list,
+                    message = "Invitación rechazada."
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    error = "No se pudo rechazar la invitación."
                 )
             }
         }
