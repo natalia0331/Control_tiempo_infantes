@@ -20,18 +20,22 @@ class AcceptInvitationViewModel @Inject constructor(
     val result: StateFlow<String?> = _result
 
     fun acceptInvitation(code: String) = viewModelScope.launch {
-        // Si quieres usar el usuario logueado más adelante, ya tienes auth
         val userId = auth.currentUser?.uid
-        // De momento no se usa userId en InvitationRepositoryImpl, pero lo puedes aprovechar después
+        if (userId == null) {
+            _result.value = "Debes iniciar sesión para aceptar una invitación"
+            return@launch
+        }
 
-        val ok = repo.acceptInvitation(code)
+        val ok = repo.acceptInvitation(code, userId)
 
         _result.value = if (ok) {
             "Miembro incorporado al círculo"
         } else {
-            "Código inválido o ya utilizado"
+            "Código inválido, expirado o ya utilizado"
         }
     }
 
-    fun clear() { _result.value = null }
+    fun clear() {
+        _result.value = null
+    }
 }

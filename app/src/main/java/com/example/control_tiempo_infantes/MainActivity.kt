@@ -24,6 +24,8 @@ import com.example.control_tiempo_infantes.features.auth.JoinByCodeViewModel
 import com.example.control_tiempo_infantes.features.auth.RegisterScreen
 import com.example.control_tiempo_infantes.features.auth.RoleSelectionScreen
 import com.example.control_tiempo_infantes.features.circles.AddChildScreen
+import com.example.control_tiempo_infantes.features.circles.ChildInvitationsScreen
+import com.example.control_tiempo_infantes.features.circles.ChildInvitationsViewModel
 import com.example.control_tiempo_infantes.features.circles.CircleDetailScreen
 import com.example.control_tiempo_infantes.features.circles.CircleDetailViewModel
 import com.example.control_tiempo_infantes.features.circles.CirclesScreen
@@ -43,6 +45,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // ID único del dispositivo (para vincularlo al infante)
         val deviceId = Settings.Secure.getString(
             contentResolver,
             Settings.Secure.ANDROID_ID
@@ -62,7 +65,9 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding)
                     ) {
 
-                        // Selección de rol
+                        // =========================
+                        // SELECCIÓN DE ROL INICIAL
+                        // =========================
                         composable("roleSelect") {
                             RoleSelectionScreen(
                                 onSelectSupervisor = {
@@ -78,7 +83,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Pantalla de entrada para infante: login o registro
+                        // =========================
+                        // FLUJO INFANTE: elegir login o registro
+                        // =========================
                         composable("childEntry") {
                             ChildEntryScreen(
                                 onLogin = {
@@ -91,7 +98,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Login (sirve para padre e infante)
+                        // =========================
+                        // LOGIN (SUPERVISOR / INFANTE)
+                        // =========================
                         composable("auth") {
                             AuthScreen(
                                 onLoggedIn = {
@@ -104,7 +113,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Registro supervisor
+                        // =========================
+                        // REGISTRO SUPERVISOR
+                        // =========================
                         composable("register") {
                             RegisterScreen(
                                 onRegistered = {
@@ -117,7 +128,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Registro infante
+                        // =========================
+                        // REGISTRO INFANTE
+                        // =========================
                         composable("childRegister") {
                             ChildRegisterScreen(
                                 vm = authVm,
@@ -130,7 +143,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // (Opcional) unirse por código, si lo usas luego
+                        // =========================
+                        // (Opcional) Unirse por código
+                        // =========================
                         composable("joinByCode") {
                             val vm: JoinByCodeViewModel = hiltViewModel()
                             JoinByCodeScreen(
@@ -144,10 +159,13 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Home
+                        // =========================
+                        // HOME (común: supervisor / infante)
+                        // =========================
                         composable("home") {
                             HomeScreen(
                                 onOpenCircles = { nav.navigate("circles") },
+                                onOpenInvitations = { nav.navigate("childInvitations") },
                                 onLogout = {
                                     authVm.logout()
                                     nav.navigate("roleSelect") {
@@ -157,7 +175,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Lista de círculos
+                        // =========================
+                        // LISTA DE CÍRCULOS (SUPERVISOR)
+                        // =========================
                         composable("circles") {
                             val circlesVm: CirclesViewModel = hiltViewModel()
                             CirclesScreen(
@@ -169,7 +189,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Detalle de círculo
+                        // =========================
+                        // DETALLE DE CÍRCULO
+                        // =========================
                         composable("circleDetail/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
@@ -189,7 +211,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Registrar infante en círculo (HU-03)
+                        // =========================
+                        // REGISTRAR INFANTE EN CÍRCULO (HU-03)
+                        // =========================
                         composable("addChild/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
@@ -200,7 +224,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Invitar miembro
+                        // =========================
+                        // INVITAR MIEMBRO (SUPERVISOR)
+                        // =========================
                         composable("inviteMember/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: InviteViewModel = hiltViewModel()
@@ -211,7 +237,20 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Vincular dispositivo
+                        // =========================
+                        // INVITACIONES DEL INFANTE
+                        // =========================
+                        composable("childInvitations") {
+                            val vm: ChildInvitationsViewModel = hiltViewModel()
+                            ChildInvitationsScreen(
+                                vm = vm,
+                                onBack = { nav.popBackStack() }
+                            )
+                        }
+
+                        // =========================
+                        // VINCULAR DISPOSITIVO DEL INFANTE
+                        // =========================
                         composable("linkDevice/{childId}") { entry ->
                             val childId = entry.arguments?.getString("childId") ?: return@composable
                             val vm: LinkDeviceViewModel = hiltViewModel()

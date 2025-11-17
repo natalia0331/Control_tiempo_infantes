@@ -1,23 +1,53 @@
 package com.example.control_tiempo_infantes.features.home
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+
 @Composable
 fun HomeScreen(
     onOpenCircles: () -> Unit,
+    onOpenInvitations: () -> Unit,
     onLogout: () -> Unit
 ) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Home", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.size(16.dp))
-            Button(onClick = onOpenCircles) { Text("Círculos familiares") }
-            Spacer(Modifier.size(12.dp))
-            OutlinedButton(onClick = onLogout) { Text("Cerrar sesión") }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Inicio",
+            style = MaterialTheme.typography.headlineSmall
+        )
+
+        Button(
+            onClick = onOpenCircles,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Mis círculos familiares (supervisor)")
+        }
+
+        Button(
+            onClick = onOpenInvitations,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Mis invitaciones (si eres infante)")
+        }
+
+        Button(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Cerrar sesión")
         }
     }
 }
