@@ -149,15 +149,20 @@ class MainActivity : ComponentActivity() {
 
 
                         composable("home") {
-                            // Obtener displayName del usuario actual para pasarlo a HomeScreen
-                            val currentUser = FirebaseAuth.getInstance().currentUser
-                            val displayName =
+                            val profile by authVm.profile.collectAsState()
+                            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+
+                            val fallbackDisplayName =
                                 currentUser?.displayName
                                     ?: currentUser?.email
                                     ?: "Usuario"
 
+                            val displayName = profile?.displayName ?: fallbackDisplayName
+                            val isChild = profile?.role == "CHILD"
+
                             HomeScreen(
                                 displayName = displayName,
+                                isChild = isChild,
                                 onOpenCircles = { nav.navigate("circles") },
                                 onOpenInvitations = { nav.navigate("childInvitations") },
                                 onLogout = {

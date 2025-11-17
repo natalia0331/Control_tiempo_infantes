@@ -2,8 +2,10 @@ package com.example.control_tiempo_infantes.features.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.control_tiempo_infantes.domain.model.UserProfile
 import com.example.control_tiempo_infantes.domain.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.awaitClose
@@ -19,10 +21,12 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val users: UserRepository // por si ya lo usas en otros lados, lo dejamos
+    private val users: UserRepository
 ) : ViewModel() {
 
-    // Estado de sesión
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+
+
     val isLoggedIn: StateFlow<Boolean> = callbackFlow {
         val l = FirebaseAuth.AuthStateListener { a ->
             trySend(a.currentUser != null)
@@ -31,16 +35,24 @@ class AuthViewModel @Inject constructor(
         awaitClose { auth.removeAuthStateListener(l) }
     }.stateIn(viewModelScope, SharingStarted.Lazily, auth.currentUser != null)
 
-    // Loading y error genéricos para pantallas de auth
+
+    private val _profile = MutableStateFlow<UserProfile?>(null)
+    val profile: StateFlow<UserProfile?> = _profile
+
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    init {
 
-    // LOGIN (supervisor o infante: FirebaseAuth no distingue rol)
+        auth.currentUser?.uid?.let { uid ->
+            loadUserProfile(uid)
+        }
+    }
+
+
     fun login(email: String, pass: String, onResult: (String?) -> Unit) {
         viewModelScope.launch {
             try {
@@ -48,6 +60,11 @@ class AuthViewModel @Inject constructor(
                 _error.value = null
 
                 auth.signInWithEmailAndPassword(email, pass).await()
+                val uid = auth.currentUser?.uid
+
+                if (uid != null) {
+                    loadUserProfile(uid)
+                }
 
                 _loading.value = false
                 onResult(null)
@@ -60,7 +77,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // REGISTRO SUPERVISOR (ya existente si tu RegisterScreen la usa)
+
     fun register(
         name: String,
         email: String,
@@ -80,17 +97,33 @@ class AuthViewModel @Inject constructor(
                 _error.value = null
 
                 val res = auth.createUserWithEmailAndPassword(email, pass).await()
-                val uid = res.user?.uid ?: throw Exception("No se pudo obtener el usuario.")
+                val user = res.user ?: throw Exception("No se pudo obtener el usuario.")
+                val uid = user.uid
+
+
+                val profileUpdates = UserProfileChangeRequest.Builder()
+                    .setDisplayName(name)
+                    .build()
+                user.updateProfile(profileUpdates).await()
 
                 val data = hashMapOf(
                     "uid" to uid,
                     "name" to name,
                     "email" to email,
-                    "role" to "supervisor",
+                    "role" to "ADULT",
                     "createdAt" to System.currentTimeMillis()
                 )
 
                 db.collection("users").document(uid).set(data).await()
+
+                // Actualizamos el perfil en memoria
+                _profile.value = UserProfile(
+                    uid = uid,
+                    email = email,
+                    displayName = name,
+                    role = "ADULT",
+                    circleIds = emptyList()
+                )
 
                 _loading.value = false
                 onResult(null)
@@ -103,7 +136,9 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // REGISTRO INFANTE
+    // =========================
+    // REGISTRO INFANTE (CHILD)
+    // =========================
     fun registerChild(
         name: String,
         birthDate: String,
@@ -123,21 +158,33 @@ class AuthViewModel @Inject constructor(
                 _loading.value = true
                 _error.value = null
 
-                // Crear usuario en FirebaseAuth
                 val res = auth.createUserWithEmailAndPassword(email, pass).await()
-                val uid = res.user?.uid ?: throw Exception("No se pudo obtener el usuario.")
+                val user = res.user ?: throw Exception("No se pudo obtener el usuario.")
+                val uid = user.uid
 
-                // Guardar perfil en colección "users"
+                val profileUpdates = UserProfileChangeRequest.Builder()
+                    .setDisplayName(name)
+                    .build()
+                user.updateProfile(profileUpdates).await()
+
                 val data = hashMapOf(
                     "uid" to uid,
                     "name" to name,
                     "birthDate" to birthDate,
                     "email" to email,
-                    "role" to "child",
+                    "role" to "CHILD",
                     "createdAt" to System.currentTimeMillis()
                 )
 
                 db.collection("users").document(uid).set(data).await()
+
+                _profile.value = UserProfile(
+                    uid = uid,
+                    email = email,
+                    displayName = name,
+                    role = "CHILD",
+                    circleIds = emptyList()
+                )
 
                 _loading.value = false
                 onResult(null)
@@ -150,11 +197,42 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    private fun loadUserProfile(uid: String) {
+        viewModelScope.launch {
+            try {
+                val snap = db.collection("users").document(uid).get().await()
+                if (!snap.exists()) {
+                    _profile.value = null
+                    return@launch
+                }
+
+                val email = snap.getString("email")
+                val name = snap.getString("name")
+                val role = snap.getString("role") ?: "ADULT"
+                val circleIdsAny = snap.get("circleIds") as? List<*>
+                val circleIds = circleIdsAny
+                    ?.filterIsInstance<String>()
+                    ?: emptyList()
+
+                _profile.value = UserProfile(
+                    uid = uid,
+                    email = email,
+                    displayName = name,
+                    role = role,
+                    circleIds = circleIds
+                )
+            } catch (e: Exception) {
+                _profile.value = null
+            }
+        }
+    }
+
     fun clearError() {
         _error.value = null
     }
 
     fun logout() {
         auth.signOut()
+        _profile.value = null
     }
 }
