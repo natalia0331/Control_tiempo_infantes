@@ -10,65 +10,70 @@ class InvitationRepositoryImpl @Inject constructor(
     private val db: FirebaseFirestore
 ) : InvitationRepository {
 
+    private val col get() = db.collection("invitations")
+
     override suspend fun createInvitation(circleId: String, email: String, type: String): Boolean {
         return try {
             val code = (100000..999999).random().toString()
+            val now = System.currentTimeMillis()
+            val expiresAt = now + 7L * 24L * 60L * 60L * 1000L // 7 días
 
             val inv = hashMapOf(
                 "circleId" to circleId,
                 "email" to email,
-                "type" to type,
+                "type" to type,            // "child" o "adult"
                 "code" to code,
-                "status" to "pending"
+                "status" to "pending",
+                "createdAt" to now,
+                "expiresAt" to expiresAt
             )
 
-            db.collection("invitations")
-                .add(inv)
-                .await()
-
+            col.add(inv).await()
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             false
         }
     }
 
     override suspend fun getInvitations(circleId: String): List<Invitation> {
         return try {
-            db.collection("invitations")
-                .whereEqualTo("circleId", circleId)
-                .get()
-                .await()
-                .documents
-                .map {
-                    Invitation(
-                        id = it.id,
-                        circleId = it["circleId"].toString(),
-                        email = it["email"].toString(),
-                        code = it["code"].toString(),
-                        typeAccess = it["type"].toString(),
-                        status = it["status"].toString()
-                    )
-                }
-        } catch (_: Exception) {
+            val snap = col.whereEqualTo("circleId", circleId).get().await()
+            snap.toObjects(Invitation::class.java)
+        } catch (e: Exception) {
             emptyList()
         }
     }
 
     override suspend fun acceptInvitation(code: String): Boolean {
         return try {
-            val query = db.collection("invitations")
+            // 1. Buscar la invitación por código
+            val snap = col
                 .whereEqualTo("code", code)
+                .limit(1)
                 .get()
                 .await()
 
-            if (query.isEmpty) return false
+            if (snap.isEmpty) return false
 
-            val doc = query.documents.first()
+            val doc = snap.documents.first()
+            val status = doc.getString("status") ?: "pending"
+            val expiresAt = doc.getLong("expiresAt") ?: 0L
+            val now = System.currentTimeMillis()
 
-            doc.reference.update("status", "accepted").await()
+            // 2. Validar estado y expiración
+            if (status != "pending") return false
+            if (expiresAt < now) return false
+
+            // 3. Marcar como aceptada
+            doc.reference.update(
+                mapOf(
+                    "status" to "accepted",
+                    "acceptedAt" to now
+                )
+            ).await()
 
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             false
         }
     }

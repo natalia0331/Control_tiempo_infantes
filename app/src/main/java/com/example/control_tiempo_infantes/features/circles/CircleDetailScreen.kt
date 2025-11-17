@@ -17,7 +17,9 @@ fun CircleDetailScreen(
     vm: CircleDetailViewModel,
     circleId: String,
     onBack: () -> Unit,
-    onAddChild: () -> Unit
+    onAddChild: () -> Unit,
+    onInviteMember: () -> Unit,
+    onOpenLinkDevice: (String) -> Unit
 ) {
     LaunchedEffect(circleId) {
         vm.init(circleId)
@@ -46,6 +48,11 @@ fun CircleDetailScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver"
                         )
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onInviteMember) {
+                        Text("Invitar miembro")
                     }
                 }
             )
@@ -91,11 +98,22 @@ fun CircleDetailScreen(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(text = "Edad: ${child.age}")
+
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    TextButton(
-                                        onClick = { vm.generateLinkCode(child.id) }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        Text("Generar código para vincular dispositivo")
+                                        TextButton(
+                                            onClick = { vm.generateLinkCode(child.id) }
+                                        ) {
+                                            Text("Generar código")
+                                        }
+                                        TextButton(
+                                            onClick = { onOpenLinkDevice(child.id) }
+                                        ) {
+                                            Text("Vincular dispositivo")
+                                        }
                                     }
                                 }
                             }

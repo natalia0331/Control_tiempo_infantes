@@ -17,7 +17,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.control_tiempo_infantes.features.auth.AuthScreen
 import com.example.control_tiempo_infantes.features.auth.AuthViewModel
+import com.example.control_tiempo_infantes.features.auth.ChildEntryScreen
+import com.example.control_tiempo_infantes.features.auth.ChildRegisterScreen
+import com.example.control_tiempo_infantes.features.auth.JoinByCodeScreen
+import com.example.control_tiempo_infantes.features.auth.JoinByCodeViewModel
 import com.example.control_tiempo_infantes.features.auth.RegisterScreen
+import com.example.control_tiempo_infantes.features.auth.RoleSelectionScreen
 import com.example.control_tiempo_infantes.features.circles.AddChildScreen
 import com.example.control_tiempo_infantes.features.circles.CircleDetailScreen
 import com.example.control_tiempo_infantes.features.circles.CircleDetailViewModel
@@ -53,15 +58,45 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(
                         navController = nav,
-                        startDestination = if (isLoggedIn) "home" else "auth",
+                        startDestination = if (isLoggedIn) "home" else "roleSelect",
                         modifier = Modifier.padding(innerPadding)
                     ) {
 
+                        // Selección de rol
+                        composable("roleSelect") {
+                            RoleSelectionScreen(
+                                onSelectSupervisor = {
+                                    nav.navigate("auth") {
+                                        popUpTo("roleSelect") { inclusive = false }
+                                    }
+                                },
+                                onSelectChild = {
+                                    nav.navigate("childEntry") {
+                                        popUpTo("roleSelect") { inclusive = false }
+                                    }
+                                }
+                            )
+                        }
+
+                        // Pantalla de entrada para infante: login o registro
+                        composable("childEntry") {
+                            ChildEntryScreen(
+                                onLogin = {
+                                    nav.navigate("auth")
+                                },
+                                onRegister = {
+                                    nav.navigate("childRegister")
+                                },
+                                onBack = { nav.popBackStack() }
+                            )
+                        }
+
+                        // Login (sirve para padre e infante)
                         composable("auth") {
                             AuthScreen(
                                 onLoggedIn = {
                                     nav.navigate("home") {
-                                        popUpTo("auth") { inclusive = true }
+                                        popUpTo("roleSelect") { inclusive = true }
                                     }
                                 },
                                 onGoToRegister = { nav.navigate("register") },
@@ -69,11 +104,12 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Registro supervisor
                         composable("register") {
                             RegisterScreen(
                                 onRegistered = {
                                     nav.navigate("home") {
-                                        popUpTo("auth") { inclusive = true }
+                                        popUpTo("roleSelect") { inclusive = true }
                                     }
                                 },
                                 onBack = { nav.popBackStack() },
@@ -81,13 +117,47 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        composable("home") {
-                            HomeScreen(
-                                onOpenCircles = { nav.navigate("circles") },
-                                onLogout = { authVm.logout() }
+                        // Registro infante
+                        composable("childRegister") {
+                            ChildRegisterScreen(
+                                vm = authVm,
+                                onRegistered = {
+                                    nav.navigate("home") {
+                                        popUpTo("roleSelect") { inclusive = true }
+                                    }
+                                },
+                                onBack = { nav.popBackStack() }
                             )
                         }
 
+                        // (Opcional) unirse por código, si lo usas luego
+                        composable("joinByCode") {
+                            val vm: JoinByCodeViewModel = hiltViewModel()
+                            JoinByCodeScreen(
+                                vm = vm,
+                                onBack = { nav.popBackStack() },
+                                onJoined = {
+                                    nav.navigate("home") {
+                                        popUpTo("roleSelect") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+
+                        // Home
+                        composable("home") {
+                            HomeScreen(
+                                onOpenCircles = { nav.navigate("circles") },
+                                onLogout = {
+                                    authVm.logout()
+                                    nav.navigate("roleSelect") {
+                                        popUpTo("home") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+
+                        // Lista de círculos
                         composable("circles") {
                             val circlesVm: CirclesViewModel = hiltViewModel()
                             CirclesScreen(
@@ -99,6 +169,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Detalle de círculo
                         composable("circleDetail/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
@@ -118,6 +189,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Registrar infante en círculo (HU-03)
                         composable("addChild/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
@@ -128,6 +200,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Invitar miembro
                         composable("inviteMember/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: InviteViewModel = hiltViewModel()
@@ -138,6 +211,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Vincular dispositivo
                         composable("linkDevice/{childId}") { entry ->
                             val childId = entry.arguments?.getString("childId") ?: return@composable
                             val vm: LinkDeviceViewModel = hiltViewModel()
