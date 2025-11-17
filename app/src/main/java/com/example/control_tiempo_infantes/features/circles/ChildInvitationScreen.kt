@@ -103,10 +103,6 @@ fun ChildInvitationsScreen(
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = "Tipo: ${if (inv.type == "child") "Infante" else "Adulto"}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
                                     text = "Código: ${inv.code}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
