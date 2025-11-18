@@ -1,7 +1,9 @@
 package com.example.control_tiempo_infantes
 
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -39,6 +41,7 @@ import com.example.control_tiempo_infantes.features.devices.DevicesViewModel
 import com.example.control_tiempo_infantes.features.devices.ScreenTimeScreen
 import com.example.control_tiempo_infantes.features.devices.ScreenTimeViewModel
 import com.example.control_tiempo_infantes.features.devices.UsageSyncViewModel
+import com.example.control_tiempo_infantes.features.devices.hasUsagePermission
 import com.example.control_tiempo_infantes.features.home.HomeScreen
 import com.example.control_tiempo_infantes.features.link.LinkDeviceScreen
 import com.example.control_tiempo_infantes.features.link.LinkDeviceViewModel
@@ -53,7 +56,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // ID único del dispositivo (para vincularlo al infante)
         val deviceId = Settings.Secure.getString(
             contentResolver,
             Settings.Secure.ANDROID_ID
@@ -73,7 +75,6 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding)
                     ) {
 
-                        // Selección de rol inicial
                         composable("roleSelect") {
                             RoleSelectionScreen(
                                 onSelectSupervisor = {
@@ -89,20 +90,14 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Pantalla de entrada de infante (elige login o registro)
                         composable("childEntry") {
                             ChildEntryScreen(
-                                onLogin = {
-                                    nav.navigate("auth")
-                                },
-                                onRegister = {
-                                    nav.navigate("childRegister")
-                                },
+                                onLogin = { nav.navigate("auth") },
+                                onRegister = { nav.navigate("childRegister") },
                                 onBack = { nav.popBackStack() }
                             )
                         }
 
-                        // Login (adulto / infante)
                         composable("auth") {
                             AuthScreen(
                                 onLoggedIn = {
@@ -115,7 +110,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Registro supervisor (adulto)
                         composable("register") {
                             RegisterScreen(
                                 onRegistered = {
@@ -128,7 +122,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Registro infante
                         composable("childRegister") {
                             ChildRegisterScreen(
                                 vm = authVm,
@@ -141,7 +134,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Unirse por código (opcional)
                         composable("joinByCode") {
                             val vm: JoinByCodeViewModel = hiltViewModel()
                             JoinByCodeScreen(
@@ -155,22 +147,33 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // HOME
                         composable("home") {
                             val profile by authVm.profile.collectAsState()
                             val currentUser = FirebaseAuth.getInstance().currentUser
                             val ctx = LocalContext.current
 
-                            // Sincroniza uso de pantalla si es CHILD
                             val usageVm: UsageSyncViewModel = hiltViewModel()
                             LaunchedEffect(profile?.uid, profile?.role) {
                                 val uid = profile?.uid
-                                if (uid != null && profile?.role.equals("CHILD", ignoreCase = true)) {
-                                    usageVm.syncTodayUsage(
-                                        ctx = ctx,
-                                        childId = uid,
-                                        deviceId = deviceId
-                                    )
+                                val isChild =
+                                    profile?.role?.equals("CHILD", ignoreCase = true) == true
+
+                                if (uid != null && isChild) {
+
+                                    if (!hasUsagePermission(ctx)) {
+                                        ctx.startActivity(
+                                            Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                        )
+                                    } else {
+                                        usageVm.syncTodayUsage(
+                                            ctx = ctx,
+                                            childId = uid,
+                                            deviceId = deviceId,
+                                            model = Build.MODEL
+                                        )
+                                    }
                                 }
                             }
 
@@ -198,10 +201,8 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             )
-
                         }
 
-                        // Lista de círculos
                         composable("circles") {
                             val circlesVm: CirclesViewModel = hiltViewModel()
                             CirclesScreen(
@@ -216,9 +217,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Detalle círculo
                         composable("circleDetail/{circleId}") { entry ->
-                            val circleId = entry.arguments?.getString("circleId") ?: return@composable
+                            val circleId =
+                                entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
                             CircleDetailScreen(
                                 vm = vm,
@@ -239,10 +240,11 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Dispositivos de un infante
                         composable("childDevices/{childId}/{childName}") { entry ->
-                            val childId = entry.arguments?.getString("childId") ?: return@composable
-                            val childName = entry.arguments?.getString("childName") ?: "Infante"
+                            val childId =
+                                entry.arguments?.getString("childId") ?: return@composable
+                            val childName =
+                                entry.arguments?.getString("childName") ?: "Infante"
 
                             val vm: DevicesViewModel = hiltViewModel()
                             ChildDevicesScreen(
@@ -253,9 +255,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Agregar infante al círculo
                         composable("addChild/{circleId}") { entry ->
-                            val circleId = entry.arguments?.getString("circleId") ?: return@composable
+                            val circleId =
+                                entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
                             AddChildScreen(
                                 vm = vm,
@@ -264,9 +266,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Invitar miembro (supervisor)
                         composable("inviteMember/{circleId}") { entry ->
-                            val circleId = entry.arguments?.getString("circleId") ?: return@composable
+                            val circleId =
+                                entry.arguments?.getString("circleId") ?: return@composable
                             val vm: InviteViewModel = hiltViewModel()
                             InviteMemberScreen(
                                 vm = vm,
@@ -275,7 +277,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Invitaciones del infante
                         composable("childInvitations") {
                             val vm: ChildInvitationsViewModel = hiltViewModel()
                             ChildInvitationsScreen(
@@ -284,9 +285,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Vincular dispositivo del infante
                         composable("linkDevice/{childId}") { entry ->
-                            val childId = entry.arguments?.getString("childId") ?: return@composable
+                            val childId =
+                                entry.arguments?.getString("childId") ?: return@composable
                             val vm: LinkDeviceViewModel = hiltViewModel()
                             LinkDeviceScreen(
                                 vm = vm,
@@ -296,12 +297,20 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Pantalla de tiempos de pantalla
                         composable("screenTime") {
                             val vm: ScreenTimeViewModel = hiltViewModel()
+                            val ctx = LocalContext.current
+
                             ScreenTimeScreen(
                                 vm = vm,
-                                onBack = { nav.popBackStack() }
+                                onBack = { nav.popBackStack() },
+                                onOpenUsageSettings = {
+                                    ctx.startActivity(
+                                        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                    )
+                                }
                             )
                         }
                     }

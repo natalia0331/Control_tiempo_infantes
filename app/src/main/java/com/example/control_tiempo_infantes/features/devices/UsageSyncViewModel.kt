@@ -1,10 +1,8 @@
 package com.example.control_tiempo_infantes.features.devices
 
-import android.app.AppOpsManager
-import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.os.Build
-import android.provider.Settings
+import android.content.pm.PackageManager
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
@@ -21,109 +19,75 @@ class UsageSyncViewModel @Inject constructor(
     private val db: FirebaseFirestore
 ) : ViewModel() {
 
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
     fun syncTodayUsage(
         ctx: Context,
         childId: String,
-        deviceId: String
+        deviceId: String,
+        model: String
     ) {
         viewModelScope.launch {
             try {
-                // 1. Comprobar permiso de uso
-                if (!hasUsageAccess(ctx)) {
-                    // No lanzamos settings aquí para mantener el VM limpio.
-                    // Solo no guardamos nada si no hay permiso.
+                val today = dateFormat.format(Date())
+                val usageList = readTodayUsage(ctx)
+
+                Log.d("UsageSync", "syncTodayUsage: ${usageList.size} apps encontradas")
+
+                if (usageList.isEmpty()) {
+                    Log.d("UsageSync", "No hay uso hoy, no se sube nada")
                     return@launch
                 }
 
-                val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-
-                val now = System.currentTimeMillis()
-                val dayStart = getTodayStartMillis()
-                val dateStr = formatDate(now)
-
-                val stats = usm.queryUsageStats(
-                    UsageStatsManager.INTERVAL_DAILY,
-                    dayStart,
-                    now
-                )
-
-                if (stats.isNullOrEmpty()) return@launch
-
-                // 2. Agrupar minutos por paquete
-                val minutesPerPackage = mutableMapOf<String, Long>()
-
-                stats.forEach { s ->
-                    val minutes = s.totalTimeInForeground / 1000L / 60L
-                    if (minutes > 0) {
-                        minutesPerPackage[s.packageName] =
-                            (minutesPerPackage[s.packageName] ?: 0L) + minutes
-                    }
-                }
-
-                if (minutesPerPackage.isEmpty()) return@launch
-
-                // 3. Guardar en Firestore en batch (colección device_usage)
                 val col = db.collection("device_usage")
+
+                // 1) Eliminar registros anteriores de HOY para este niño + dispositivo
+                val existingSnap = col
+                    .whereEqualTo("childId", childId)
+                    .whereEqualTo("deviceId", deviceId)
+                    .whereEqualTo("date", today)
+                    .get()
+                    .await()
+
                 val batch = db.batch()
 
-                minutesPerPackage.forEach { (pkg, mins) ->
+                existingSnap.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+
+                // 2) Insertar registros nuevos de hoy
+                usageList.forEach { appUsage ->
                     val doc = col.document()
                     val data = hashMapOf(
                         "id" to doc.id,
                         "childId" to childId,
                         "deviceId" to deviceId,
-                        "appPackage" to pkg,
-                        "appName" to pkg, // luego puedes resolver nombres bonitos si quieres
-                        "date" to dateStr,
-                        "totalMinutes" to mins.toInt(),
-                        "lastUpdatedAt" to now
+                        "model" to model,
+                        "appPackage" to appUsage.packageName,
+                        "appName" to resolveAppName(ctx, appUsage.packageName),
+                        "date" to today,
+                        "totalMinutes" to appUsage.totalMinutes,
+                        "lastUpdatedAt" to System.currentTimeMillis()
                     )
                     batch.set(doc, data)
                 }
 
                 batch.commit().await()
-            } catch (_: Exception) {
-                // En producción puedes loggear el error
+                Log.d("UsageSync", "Se subió uso de ${usageList.size} apps a Firestore (reemplazando los datos de hoy)")
+
+            } catch (e: Exception) {
+                Log.e("UsageSync", "Error al sincronizar uso", e)
             }
         }
     }
 
-    private fun getTodayStartMillis(): Long {
-        val cal = java.util.Calendar.getInstance()
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        cal.set(java.util.Calendar.MINUTE, 0)
-        cal.set(java.util.Calendar.SECOND, 0)
-        cal.set(java.util.Calendar.MILLISECOND, 0)
-        return cal.timeInMillis
-    }
-
-    private fun formatDate(timeMillis: Long): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        return sdf.format(Date(timeMillis))
-    }
-
-    private fun hasUsageAccess(ctx: Context): Boolean {
-        val appOps = ctx.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(
-                "android:get_usage_stats",
-                android.os.Process.myUid(),
-                ctx.packageName
-            )
-        } else {
-            appOps.checkOpNoThrow(
-                "android:get_usage_stats",
-                android.os.Process.myUid(),
-                ctx.packageName
-            )
+    private fun resolveAppName(ctx: Context, pkg: String): String {
+        return try {
+            val pm: PackageManager = ctx.packageManager
+            val appInfo = pm.getApplicationInfo(pkg, 0)
+            pm.getApplicationLabel(appInfo).toString()
+        } catch (_: Exception) {
+            pkg
         }
-        if (mode == AppOpsManager.MODE_DEFAULT) {
-            return Settings.Secure.getInt(
-                ctx.contentResolver,
-                "usage_access",
-                0
-            ) == 1
-        }
-        return mode == AppOpsManager.MODE_ALLOWED
     }
 }

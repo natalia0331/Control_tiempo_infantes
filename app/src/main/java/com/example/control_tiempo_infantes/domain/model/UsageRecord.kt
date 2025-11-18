@@ -10,24 +10,3 @@ data class UsageRecord(
     val totalMinutes: Int = 0,
     val lastUpdatedAt: Long = 0L
 )
-
-
-data class AppUsageUi(
-    val appPackage: String,
-    val appName: String,
-    val totalMinutes: Int
-)
-
-data class DeviceUsageItem(
-    val deviceId: String,
-    val model: String,
-    val totalMinutes: Int,
-    val apps: List<AppUsageUi>
-)
-
-data class ScreenTimeUiState(
-    val loading: Boolean = false,
-    val error: String? = null,
-    val dateLabel: String = "",
-    val devices: List<DeviceUsageItem> = emptyList()
-)

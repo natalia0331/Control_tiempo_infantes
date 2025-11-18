@@ -16,7 +16,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ScreenTimeScreen(
     vm: ScreenTimeViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenUsageSettings: () -> Unit
 ) {
     LaunchedEffect(Unit) {
         vm.loadToday()
@@ -65,7 +66,17 @@ fun ScreenTimeScreen(
                 CircularProgressIndicator()
             } else if (state.devices.isEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Hoy aún no hay uso registrado.")
+                Text("Hoy aún no hay uso registrado o no se pudo leer el uso del dispositivo.")
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onOpenUsageSettings,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Revisar permiso de acceso al uso")
+                }
+
             } else {
                 val totalGlobal = state.devices.sumOf { it.totalMinutes }
                 if (totalGlobal > 0) {
@@ -85,7 +96,7 @@ fun ScreenTimeScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(state.devices) { dev ->
-                        DeviceUsageCard(dev)
+                        DeviceUsageCard(item = dev)
                     }
                 }
             }
@@ -110,6 +121,7 @@ private fun DeviceUsageCard(item: DeviceUsageItem) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+
             Text(
                 text = item.model,
                 style = MaterialTheme.typography.titleMedium

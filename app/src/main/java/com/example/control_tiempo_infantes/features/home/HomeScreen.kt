@@ -33,7 +33,6 @@ fun HomeScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Saludo
         Text(
             text = "Hola, $displayName",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
@@ -67,9 +66,6 @@ fun HomeScreen(
     }
 }
 
-/**
- * Dashboard para ADULTO / SUPERVISOR
- */
 @Composable
 private fun AdultDashboard(
     onOpenCircles: () -> Unit,
@@ -117,7 +113,6 @@ private fun AdultDashboard(
         }
     }
 
-    // Tarjeta secundaria: invitaciones / control de accesos
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -152,13 +147,13 @@ private fun AdultDashboard(
         Text("Cerrar sesión")
     }
 }
+
 @Composable
 private fun ChildDashboard(
     onOpenCircles: () -> Unit,
     onOpenInvitations: () -> Unit,
     onLogout: () -> Unit
 ) {
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
