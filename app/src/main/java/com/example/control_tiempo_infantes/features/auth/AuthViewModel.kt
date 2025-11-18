@@ -26,7 +26,7 @@ class AuthViewModel @Inject constructor(
 
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 
-
+    // Estado de sesión
     val isLoggedIn: StateFlow<Boolean> = callbackFlow {
         val l = FirebaseAuth.AuthStateListener { a ->
             trySend(a.currentUser != null)
@@ -35,7 +35,7 @@ class AuthViewModel @Inject constructor(
         awaitClose { auth.removeAuthStateListener(l) }
     }.stateIn(viewModelScope, SharingStarted.Lazily, auth.currentUser != null)
 
-
+    // Perfil del usuario
     private val _profile = MutableStateFlow<UserProfile?>(null)
     val profile: StateFlow<UserProfile?> = _profile
 
@@ -46,13 +46,15 @@ class AuthViewModel @Inject constructor(
     val error: StateFlow<String?> = _error
 
     init {
-
+        // Si ya hay usuario logueado al abrir la app, cargar su perfil
         auth.currentUser?.uid?.let { uid ->
             loadUserProfile(uid)
         }
     }
 
-
+    // =========================================================
+    // LOGIN
+    // =========================================================
     fun login(email: String, pass: String, onResult: (String?) -> Unit) {
         viewModelScope.launch {
             try {
@@ -77,7 +79,9 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-
+    // =========================================================
+    // REGISTRO ADULTO (SUPERVISOR)
+    // =========================================================
     fun register(
         name: String,
         email: String,
@@ -100,7 +104,6 @@ class AuthViewModel @Inject constructor(
                 val user = res.user ?: throw Exception("No se pudo obtener el usuario.")
                 val uid = user.uid
 
-
                 val profileUpdates = UserProfileChangeRequest.Builder()
                     .setDisplayName(name)
                     .build()
@@ -110,13 +113,12 @@ class AuthViewModel @Inject constructor(
                     "uid" to uid,
                     "name" to name,
                     "email" to email,
-                    "role" to "ADULT",
+                    "role" to "ADULT", // siempre en mayúsculas
                     "createdAt" to System.currentTimeMillis()
                 )
 
                 db.collection("users").document(uid).set(data).await()
 
-                // Actualizamos el perfil en memoria
                 _profile.value = UserProfile(
                     uid = uid,
                     email = email,
@@ -136,9 +138,9 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // =========================
+    // =========================================================
     // REGISTRO INFANTE (CHILD)
-    // =========================
+    // =========================================================
     fun registerChild(
         name: String,
         birthDate: String,
@@ -172,7 +174,7 @@ class AuthViewModel @Inject constructor(
                     "name" to name,
                     "birthDate" to birthDate,
                     "email" to email,
-                    "role" to "CHILD",
+                    "role" to "CHILD", // siempre en mayúsculas
                     "createdAt" to System.currentTimeMillis()
                 )
 
@@ -197,6 +199,9 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    // =========================================================
+    // CARGAR PERFIL DESDE FIRESTORE
+    // =========================================================
     private fun loadUserProfile(uid: String) {
         viewModelScope.launch {
             try {
@@ -208,7 +213,10 @@ class AuthViewModel @Inject constructor(
 
                 val email = snap.getString("email")
                 val name = snap.getString("name")
-                val role = snap.getString("role") ?: "ADULT"
+
+                val roleRaw = snap.getString("role") ?: "ADULT"
+                val role = roleRaw.uppercase() // normalizamos: "child" -> "CHILD"
+
                 val circleIdsAny = snap.get("circleIds") as? List<*>
                 val circleIds = circleIdsAny
                     ?.filterIsInstance<String>()
@@ -225,6 +233,19 @@ class AuthViewModel @Inject constructor(
                 _profile.value = null
             }
         }
+    }
+
+    /**
+     * Forzamos recarga de perfil cuando entramos a HOME.
+     * Si ya tenemos el perfil del mismo uid, no hacemos nada.
+     */
+    fun ensureProfileLoaded() {
+        val uid = auth.currentUser?.uid ?: return
+        val current = _profile.value
+        if (current?.uid == uid && !current.role.isNullOrBlank()) {
+            return
+        }
+        loadUserProfile(uid)
     }
 
     fun clearError() {

@@ -38,6 +38,8 @@ import com.example.control_tiempo_infantes.features.link.LinkDeviceViewModel
 import com.example.control_tiempo_infantes.ui.theme.Control_tiempo_infantesTheme
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.runtime.LaunchedEffect
+
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -66,6 +68,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding)
                     ) {
 
+                        // Selección de rol inicial
                         composable("roleSelect") {
                             RoleSelectionScreen(
                                 onSelectSupervisor = {
@@ -81,7 +84,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Pantalla de entrada de infante (elige login o registro)
                         composable("childEntry") {
                             ChildEntryScreen(
                                 onLogin = {
@@ -94,7 +97,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Login (adulto / infante)
                         composable("auth") {
                             AuthScreen(
                                 onLoggedIn = {
@@ -107,7 +110,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Registro supervisor (adulto)
                         composable("register") {
                             RegisterScreen(
                                 onRegistered = {
@@ -120,7 +123,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Registro infante
                         composable("childRegister") {
                             ChildRegisterScreen(
                                 vm = authVm,
@@ -133,7 +136,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Unirse por código (opcional)
                         composable("joinByCode") {
                             val vm: JoinByCodeViewModel = hiltViewModel()
                             JoinByCodeScreen(
@@ -147,18 +150,24 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
                         composable("home") {
                             val profile by authVm.profile.collectAsState()
-                            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                            val currentUser = FirebaseAuth.getInstance().currentUser
+
+                            LaunchedEffect(currentUser?.uid) {
+                                authVm.ensureProfileLoaded()
+                            }
 
                             val fallbackDisplayName =
                                 currentUser?.displayName
                                     ?: currentUser?.email
                                     ?: "Usuario"
 
-                            val displayName = profile?.displayName ?: fallbackDisplayName
-                            val isChild = profile?.role == "CHILD"
+                            val displayName =
+                                profile?.displayName?.takeIf { !it.isNullOrBlank() }
+                                    ?: fallbackDisplayName
+
+                            val isChild = profile?.role?.equals("CHILD", ignoreCase = true) == true
 
                             HomeScreen(
                                 displayName = displayName,
@@ -174,6 +183,8 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+
+
                         composable("circles") {
                             val circlesVm: CirclesViewModel = hiltViewModel()
                             CirclesScreen(
@@ -181,11 +192,15 @@ class MainActivity : ComponentActivity() {
                                 onBack = { nav.popBackStack() },
                                 onOpenCircle = { circleId ->
                                     nav.navigate("circleDetail/$circleId")
+                                },
+                                onOpenInvitations = {
+                                    nav.navigate("childInvitations")
                                 }
                             )
                         }
 
 
+                        // Detalle de círculo
                         composable("circleDetail/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
@@ -205,7 +220,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Registrar infante en círculo
                         composable("addChild/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
@@ -216,7 +231,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Invitar miembro (supervisor)
                         composable("inviteMember/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: InviteViewModel = hiltViewModel()
@@ -227,7 +242,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Invitaciones del infante
                         composable("childInvitations") {
                             val vm: ChildInvitationsViewModel = hiltViewModel()
                             ChildInvitationsScreen(
@@ -236,7 +251,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Vincular dispositivo del infante
                         composable("linkDevice/{childId}") { entry ->
                             val childId = entry.arguments?.getString("childId") ?: return@composable
                             val vm: LinkDeviceViewModel = hiltViewModel()

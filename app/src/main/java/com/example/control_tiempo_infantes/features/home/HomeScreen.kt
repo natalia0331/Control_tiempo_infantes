@@ -1,6 +1,7 @@
 package com.example.control_tiempo_infantes.features.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,8 +15,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /**
@@ -46,7 +49,7 @@ fun HomeScreen(
 
         Text(
             text = if (isChild)
-                "Este es tu espacio para ver tus círculos, tu tiempo de pantalla y tu mascota."
+                "Este es tu espacio para ver tu mascota, tus círculos, tu tiempo de pantalla y tus metas."
             else
                 "Administra tus círculos familiares, metas y tiempo de pantalla de los infantes.",
             style = MaterialTheme.typography.bodyMedium,
@@ -152,7 +155,6 @@ private fun AdultDashboard(
         }
     }
 
-    // Solo un poco de espacio antes del botón de logout
     Spacer(modifier = Modifier.height(24.dp))
 
     // Cerrar sesión
@@ -167,10 +169,8 @@ private fun AdultDashboard(
 /**
  * Dashboard para INFANTE
  *
- * - Ver círculos familiares (solo lectura)
- * - Mi tiempo de pantalla
- * - Mis metas
- * - Mi mascota
+ * Primera sección: espacio de mascota.
+ * Abajo: accesos a círculos, invitaciones, tiempo de pantalla y metas.
  */
 @Composable
 private fun ChildDashboard(
@@ -178,7 +178,7 @@ private fun ChildDashboard(
     onOpenInvitations: () -> Unit,
     onLogout: () -> Unit
 ) {
-    // Círculos (solo ver, sin administrar)
+    // ESPACIO MASCOTA (simulación / placeholder)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -187,31 +187,37 @@ private fun ChildDashboard(
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Mis círculos familiares",
+                text = "Mi mascota",
                 style = MaterialTheme.typography.titleMedium
             )
 
-            Button(
-                onClick = onOpenCircles,
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Text("Ver mis círculos")
+                Text(
+                    text = "Aquí verás a tu mascota\ny su mundo virtual.\n\n(Pantalla de ejemplo por ahora)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
             }
 
-            // Texto explicativo
             Text(
-                text = "Aquí ves los círculos a los que perteneces. Los adultos son quienes los administran.",
+                text = "Tu mascota se pondrá más feliz cuando cumplas tus metas de uso de pantalla.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
     }
 
-    // Tarjeta de tiempo y metas
+    // SECCIÓN: Mi actividad (tiempo y metas)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -244,7 +250,7 @@ private fun ChildDashboard(
         }
     }
 
-    // Tarjeta de mascota
+    // SECCIÓN: Mi familia (círculos + invitaciones)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -257,21 +263,22 @@ private fun ChildDashboard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Mi mascota",
+                text = "Mi familia",
                 style = MaterialTheme.typography.titleMedium
             )
 
-            Text(
-                text = "Tu mascota crece y se pone feliz cuando cumples tus metas de uso.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-
             Button(
-                onClick = { /* TODO: Navegar a pantalla de mascota */ },
+                onClick = onOpenCircles,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Ver mi mascota")
+                Text("Ver mis círculos familiares")
+            }
+
+            OutlinedButton(
+                onClick = onOpenInvitations,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Ver mis invitaciones")
             }
         }
     }

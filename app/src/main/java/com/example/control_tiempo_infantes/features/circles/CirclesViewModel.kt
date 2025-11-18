@@ -15,6 +15,7 @@ import javax.inject.Inject
 data class CirclesUiState(
     val loading: Boolean = false,
     val circles: List<Circle> = emptyList(),
+    val isChild: Boolean = false,          // 👈 nuevo
     val error: String? = null
 )
 
@@ -36,6 +37,7 @@ class CirclesViewModel @Inject constructor(
             _uiState.value = CirclesUiState(
                 loading = false,
                 circles = emptyList(),
+                isChild = false,
                 error = "Usuario no autenticado."
             )
             return
@@ -45,22 +47,63 @@ class CirclesViewModel @Inject constructor(
             try {
                 _uiState.value = _uiState.value.copy(loading = true, error = null)
 
-                val snap = db.collection("circles")
-                    .whereEqualTo("ownerId", user.uid)
-                    .get()
-                    .await()
+                // Leemos el perfil del usuario para saber su rol y sus círculos
+                val userSnap = db.collection("users").document(user.uid).get().await()
+                val roleRaw = userSnap.getString("role") ?: "ADULT"
+                val role = roleRaw.uppercase()
 
-                val list = snap.toObjects(Circle::class.java)
+                if (role == "CHILD") {
+                    // Para infante: sus círculos vienen de la lista circleIds
+                    val circleIdsAny = userSnap.get("circleIds") as? List<*>
+                    val circleIds = circleIdsAny
+                        ?.filterIsInstance<String>()
+                        ?: emptyList()
 
-                _uiState.value = CirclesUiState(
-                    loading = false,
-                    circles = list,
-                    error = null
-                )
+                    if (circleIds.isEmpty()) {
+                        _uiState.value = CirclesUiState(
+                            loading = false,
+                            circles = emptyList(),
+                            isChild = true,
+                            error = null
+                        )
+                        return@launch
+                    }
+
+                    // Firestore whereIn máx 10 elementos, asumimos pocos círculos
+                    val snap = db.collection("circles")
+                        .whereIn("id", circleIds)
+                        .get()
+                        .await()
+
+                    val list = snap.toObjects(Circle::class.java)
+
+                    _uiState.value = CirclesUiState(
+                        loading = false,
+                        circles = list,
+                        isChild = true,
+                        error = null
+                    )
+                } else {
+                    // Adulto / supervisor: círculos que él es owner
+                    val snap = db.collection("circles")
+                        .whereEqualTo("ownerId", user.uid)
+                        .get()
+                        .await()
+
+                    val list = snap.toObjects(Circle::class.java)
+
+                    _uiState.value = CirclesUiState(
+                        loading = false,
+                        circles = list,
+                        isChild = false,
+                        error = null
+                    )
+                }
             } catch (e: Exception) {
                 _uiState.value = CirclesUiState(
                     loading = false,
                     circles = emptyList(),
+                    isChild = _uiState.value.isChild,
                     error = e.message ?: "Error cargando círculos."
                 )
             }
@@ -85,6 +128,19 @@ class CirclesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(loading = true, error = null)
+
+                // Verificamos rol: los infantes NO pueden crear círculos
+                val userSnap = db.collection("users").document(user.uid).get().await()
+                val roleRaw = userSnap.getString("role") ?: "ADULT"
+                val role = roleRaw.uppercase()
+
+                if (role == "CHILD") {
+                    _uiState.value = _uiState.value.copy(
+                        loading = false,
+                        error = "Los infantes no pueden crear círculos familiares."
+                    )
+                    return@launch
+                }
 
                 val doc = db.collection("circles").document()
                 val id = doc.id

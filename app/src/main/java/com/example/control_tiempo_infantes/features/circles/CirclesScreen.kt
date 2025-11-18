@@ -1,60 +1,42 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.control_tiempo_infantes.features.circles
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.control_tiempo_infantes.domain.model.Circle
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CirclesScreen(
     vm: CirclesViewModel,
     onBack: () -> Unit,
-    onOpenCircle: (String) -> Unit
+    onOpenCircle: (String) -> Unit,
+    onOpenInvitations: () -> Unit        // 👈 nuevo callback
 ) {
-    val uiState by vm.uiState.collectAsState()
+    val state by vm.uiState.collectAsState()
 
-    // Estado para el diálogo de creación
     var showCreateDialog by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
-    var newDescription by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) {
-        vm.loadCircles()
-    }
+    var newDesc by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { Text("Mis círculos familiares") },
+                title = {
+                    Text(
+                        text = if (state.isChild) "Mis círculos familiares"
+                        else "Círculos familiares"
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -66,11 +48,14 @@ fun CirclesScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = "Crear círculo"
-                )
+            // Solo ADULTO puede crear círculos
+            if (!state.isChild) {
+                FloatingActionButton(onClick = { showCreateDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Crear círculo"
+                    )
+                }
             }
         }
     ) { padding ->
@@ -78,76 +63,84 @@ fun CirclesScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .padding(16.dp)
         ) {
-            when {
-                uiState.loading && uiState.circles.isEmpty() -> {
+
+            // Para INFANTE: botón para ver invitaciones
+            if (state.isChild) {
+                Button(
+                    onClick = onOpenInvitations,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text("Ver mis invitaciones")
+                }
+            }
+
+            if (state.loading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
-
-                uiState.circles.isEmpty() && uiState.error == null -> {
-                    Text("Aún no tienes círculos creados.")
-                }
-
-                else -> {
+            } else {
+                if (state.circles.isEmpty()) {
+                    Text(
+                        text = if (state.isChild)
+                            "Aún no perteneces a ningún círculo familiar."
+                        else
+                            "Todavía no has creado círculos familiares.",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                } else {
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(uiState.circles) { circle ->
-                            ElevatedCard(
-                                onClick = { onOpenCircle(circle.id) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp)
-                                ) {
-                                    Text(
-                                        text = circle.name,
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                    if (!circle.description.isNullOrBlank()) {
-                                        Text(
-                                            text = circle.description,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                    }
-
-                                }
+                        items(state.circles) { circle ->
+                            CircleItem(circle = circle) {
+                                onOpenCircle(circle.id)
                             }
                         }
                     }
                 }
             }
 
-            uiState.error?.let { msg ->
+            state.error?.let { msg ->
                 Text(
                     text = msg,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
                 )
             }
         }
     }
 
-    // DIÁLOGO DE CREACIÓN DE CÍRCULO
-    if (showCreateDialog) {
+    // Diálogo para crear círculo (solo se puede abrir si es adulto)
+    if (showCreateDialog && !state.isChild) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             title = { Text("Nuevo círculo familiar") },
             text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = newName,
                         onValueChange = { newName = it },
-                        label = { Text("Nombre del círculo") },
+                        label = { Text("Nombre") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
-                        value = newDescription,
-                        onValueChange = { newDescription = it },
+                        value = newDesc,
+                        onValueChange = { newDesc = it },
                         label = { Text("Descripción (opcional)") },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -156,11 +149,11 @@ fun CirclesScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        vm.createCircle(newName.trim(), newDesc.trim())
                         if (newName.isNotBlank()) {
-                            vm.createCircle(newName.trim(), newDescription.trim())
                             showCreateDialog = false
                             newName = ""
-                            newDescription = ""
+                            newDesc = ""
                         }
                     }
                 ) {
@@ -173,5 +166,32 @@ fun CirclesScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun CircleItem(
+    circle: Circle,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = circle.name,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            if (circle.description.isNotBlank()) {
+                Text(
+                    text = circle.description,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
     }
 }
