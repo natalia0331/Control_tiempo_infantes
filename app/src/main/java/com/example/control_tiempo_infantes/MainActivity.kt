@@ -8,9 +8,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,16 +34,17 @@ import com.example.control_tiempo_infantes.features.circles.CirclesScreen
 import com.example.control_tiempo_infantes.features.circles.CirclesViewModel
 import com.example.control_tiempo_infantes.features.circles.InviteMemberScreen
 import com.example.control_tiempo_infantes.features.circles.InviteViewModel
+import com.example.control_tiempo_infantes.features.devices.ChildDevicesScreen
+import com.example.control_tiempo_infantes.features.devices.DevicesViewModel
+import com.example.control_tiempo_infantes.features.devices.ScreenTimeScreen
+import com.example.control_tiempo_infantes.features.devices.ScreenTimeViewModel
+import com.example.control_tiempo_infantes.features.devices.UsageSyncViewModel
 import com.example.control_tiempo_infantes.features.home.HomeScreen
 import com.example.control_tiempo_infantes.features.link.LinkDeviceScreen
 import com.example.control_tiempo_infantes.features.link.LinkDeviceViewModel
 import com.example.control_tiempo_infantes.ui.theme.Control_tiempo_infantesTheme
-import com.example.control_tiempo_infantes.features.devices.ChildDevicesScreen
-import com.example.control_tiempo_infantes.features.devices.DevicesViewModel
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.compose.runtime.LaunchedEffect
-
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -152,12 +155,23 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // HOME
                         composable("home") {
                             val profile by authVm.profile.collectAsState()
                             val currentUser = FirebaseAuth.getInstance().currentUser
+                            val ctx = LocalContext.current
 
-                            LaunchedEffect(currentUser?.uid) {
-                                authVm.ensureProfileLoaded()
+                            // Sincroniza uso de pantalla si es CHILD
+                            val usageVm: UsageSyncViewModel = hiltViewModel()
+                            LaunchedEffect(profile?.uid, profile?.role) {
+                                val uid = profile?.uid
+                                if (uid != null && profile?.role.equals("CHILD", ignoreCase = true)) {
+                                    usageVm.syncTodayUsage(
+                                        ctx = ctx,
+                                        childId = uid,
+                                        deviceId = deviceId
+                                    )
+                                }
                             }
 
                             val fallbackDisplayName =
@@ -176,6 +190,7 @@ class MainActivity : ComponentActivity() {
                                 isChild = isChild,
                                 onOpenCircles = { nav.navigate("circles") },
                                 onOpenInvitations = { nav.navigate("childInvitations") },
+                                onOpenScreenTime = { nav.navigate("screenTime") },
                                 onLogout = {
                                     authVm.logout()
                                     nav.navigate("roleSelect") {
@@ -183,10 +198,10 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             )
+
                         }
 
-
-
+                        // Lista de círculos
                         composable("circles") {
                             val circlesVm: CirclesViewModel = hiltViewModel()
                             CirclesScreen(
@@ -200,9 +215,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-
-
-                        // Dentro del NavHost en MainActivity
 
                         // Detalle círculo
                         composable("circleDetail/{circleId}") { entry ->
@@ -227,7 +239,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Dispositivos de un infante
                         composable("childDevices/{childId}/{childName}") { entry ->
                             val childId = entry.arguments?.getString("childId") ?: return@composable
                             val childName = entry.arguments?.getString("childName") ?: "Infante"
@@ -241,7 +253,16 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-
+                        // Agregar infante al círculo
+                        composable("addChild/{circleId}") { entry ->
+                            val circleId = entry.arguments?.getString("circleId") ?: return@composable
+                            val vm: CircleDetailViewModel = hiltViewModel()
+                            AddChildScreen(
+                                vm = vm,
+                                circleId = circleId,
+                                onBack = { nav.popBackStack() }
+                            )
+                        }
 
                         // Invitar miembro (supervisor)
                         composable("inviteMember/{circleId}") { entry ->
@@ -271,6 +292,15 @@ class MainActivity : ComponentActivity() {
                                 vm = vm,
                                 childId = childId,
                                 deviceId = deviceId,
+                                onBack = { nav.popBackStack() }
+                            )
+                        }
+
+                        // Pantalla de tiempos de pantalla
+                        composable("screenTime") {
+                            val vm: ScreenTimeViewModel = hiltViewModel()
+                            ScreenTimeScreen(
+                                vm = vm,
                                 onBack = { nav.popBackStack() }
                             )
                         }

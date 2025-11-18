@@ -1,7 +1,6 @@
 package com.example.control_tiempo_infantes.features.home
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,24 +14,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-/**
- * Home genérica que dibuja un dashboard distinto según si es infante o adulto.
- *
- * @param displayName Nombre del usuario (para el saludo)
- * @param isChild true = infante, false = adulto/supervisor
- */
 @Composable
 fun HomeScreen(
     displayName: String,
     isChild: Boolean,
     onOpenCircles: () -> Unit,
     onOpenInvitations: () -> Unit,
+    onOpenScreenTime: () -> Unit,
     onLogout: () -> Unit
 ) {
     Column(
@@ -49,7 +41,7 @@ fun HomeScreen(
 
         Text(
             text = if (isChild)
-                "Este es tu espacio para ver tu mascota, tus círculos, tu tiempo de pantalla y tus metas."
+                "Este es tu espacio para ver tu mascota, tus círculos y tu tiempo de pantalla."
             else
                 "Administra tus círculos familiares, metas y tiempo de pantalla de los infantes.",
             style = MaterialTheme.typography.bodyMedium,
@@ -68,6 +60,7 @@ fun HomeScreen(
             AdultDashboard(
                 onOpenCircles = onOpenCircles,
                 onOpenInvitations = onOpenInvitations,
+                onOpenScreenTime = onOpenScreenTime,
                 onLogout = onLogout
             )
         }
@@ -76,18 +69,14 @@ fun HomeScreen(
 
 /**
  * Dashboard para ADULTO / SUPERVISOR
- *
- * - Ver mis círculos familiares
- * - Ver tiempos de pantalla
- * - Establecer metas de uso
  */
 @Composable
 private fun AdultDashboard(
     onOpenCircles: () -> Unit,
     onOpenInvitations: () -> Unit,
+    onOpenScreenTime: () -> Unit,
     onLogout: () -> Unit
 ) {
-    // Tarjeta de acciones principales
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -112,9 +101,8 @@ private fun AdultDashboard(
                 Text("Ver mis círculos familiares")
             }
 
-            // Si más adelante tienes una pantalla para tiempos de pantalla globales, navegas desde aquí
             OutlinedButton(
-                onClick = { /* TODO: Navegar a pantalla de tiempos */ },
+                onClick = onOpenScreenTime,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Ver tiempos de pantalla")
@@ -157,7 +145,6 @@ private fun AdultDashboard(
 
     Spacer(modifier = Modifier.height(24.dp))
 
-    // Cerrar sesión
     OutlinedButton(
         onClick = onLogout,
         modifier = Modifier.fillMaxWidth()
@@ -165,92 +152,44 @@ private fun AdultDashboard(
         Text("Cerrar sesión")
     }
 }
-
-/**
- * Dashboard para INFANTE
- *
- * Primera sección: espacio de mascota.
- * Abajo: accesos a círculos, invitaciones, tiempo de pantalla y metas.
- */
 @Composable
 private fun ChildDashboard(
     onOpenCircles: () -> Unit,
     onOpenInvitations: () -> Unit,
     onLogout: () -> Unit
 ) {
-    // ESPACIO MASCOTA (simulación / placeholder)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(6.dp)
     ) {
         Column(
-            modifier = Modifier
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Mi mascota",
-                style = MaterialTheme.typography.titleMedium
+                text = "Tu mascota digital",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
             )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Aquí verás a tu mascota\ny su mundo virtual.\n\n(Pantalla de ejemplo por ahora)",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-            }
-
             Text(
-                text = "Tu mascota se pondrá más feliz cuando cumplas tus metas de uso de pantalla.",
+                text = "Aquí pronto verás a tu mascota. " +
+                        "Ella se pondrá más feliz cuando cumplas tus metas de uso de pantalla.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
-        }
-    }
 
-    // SECCIÓN: Mi actividad (tiempo y metas)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+            Spacer(modifier = Modifier.height(80.dp))
             Text(
-                text = "Mi uso de pantalla",
-                style = MaterialTheme.typography.titleMedium
+                text = "(Espacio reservado para la mascota)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
-
-            Button(
-                onClick = { /* TODO: Navegar a pantalla "Mi tiempo de pantalla" */ },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Ver mi tiempo de pantalla")
-            }
-
-            OutlinedButton(
-                onClick = { /* TODO: Navegar a pantalla "Mis metas" */ },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Ver mis metas")
-            }
         }
     }
 
-    // SECCIÓN: Mi familia (círculos + invitaciones)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -263,7 +202,7 @@ private fun ChildDashboard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Mi familia",
+                text = "Mi espacio",
                 style = MaterialTheme.typography.titleMedium
             )
 
