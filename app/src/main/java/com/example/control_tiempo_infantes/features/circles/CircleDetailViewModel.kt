@@ -37,12 +37,23 @@ class CircleDetailViewModel @Inject constructor(
         loadChildren()
     }
 
+    /**
+     * Permite refrescar manualmente la lista de infantes desde la UI.
+     */
+    fun refreshChildren() {
+        loadChildren()
+    }
+
     private fun loadChildren() {
         val id = circleId ?: return
 
         viewModelScope.launch {
             try {
-                _uiState.value = _uiState.value.copy(loading = true, error = null, childCreated = false)
+                _uiState.value = _uiState.value.copy(
+                    loading = true,
+                    error = null,
+                    childCreated = false
+                )
 
                 val snap = db.collection("children")
                     .whereEqualTo("circleId", id)
@@ -103,7 +114,11 @@ class CircleDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                _uiState.value = _uiState.value.copy(loading = true, error = null, childCreated = false)
+                _uiState.value = _uiState.value.copy(
+                    loading = true,
+                    error = null,
+                    childCreated = false
+                )
 
                 val doc = db.collection("children").document()
                 val id = doc.id
@@ -140,9 +155,7 @@ class CircleDetailViewModel @Inject constructor(
     }
 
     /**
-     * Genera un código temporal para que cualquier dispositivo del infante
-     * se vincule. Un mismo infante puede tener varios dispositivos: simplemente
-     * generas un código nuevo para cada dispositivo que quieras agregar.
+     * Genera un código temporal para vincular dispositivos del infante.
      */
     fun generateLinkCode(childId: String) {
         viewModelScope.launch {
