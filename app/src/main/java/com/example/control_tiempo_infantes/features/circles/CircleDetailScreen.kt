@@ -1,41 +1,18 @@
 package com.example.control_tiempo_infantes.features.circles
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.padding
 
-
-@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CircleDetailScreen(
     vm: CircleDetailViewModel,
@@ -43,7 +20,8 @@ fun CircleDetailScreen(
     onBack: () -> Unit,
     onAddChild: () -> Unit,
     onInviteMember: () -> Unit,
-    onOpenLinkDevice: (String) -> Unit
+    onOpenLinkDevice: (String) -> Unit,
+    onOpenChildDevices: (String, String) -> Unit      // 👈 NUEVO
 ) {
     LaunchedEffect(circleId) {
         vm.init(circleId)
@@ -75,14 +53,12 @@ fun CircleDetailScreen(
                     }
                 },
                 actions = {
-                    // Botón para refrescar la lista de infantes
-                    IconButton(onClick = { vm.refreshChildren() }) {
+                    IconButton(onClick = { vm.refresh() }) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
-                            contentDescription = "Actualizar infantes"
+                            contentDescription = "Refrescar"
                         )
                     }
-
                     TextButton(onClick = onInviteMember) {
                         Text("Invitar miembro")
                     }
@@ -119,6 +95,9 @@ fun CircleDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(uiState.children) { child ->
+                            val devicesForChild =
+                                uiState.devicesByChild[child.id].orEmpty()
+
                             ElevatedCard(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -133,7 +112,34 @@ fun CircleDetailScreen(
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
-                                    androidx.compose.foundation.layout.Row(
+                                    Text(
+                                        text = "Dispositivos vinculados:",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+
+                                    if (devicesForChild.isEmpty()) {
+                                        Text(
+                                            text = "Sin dispositivos vinculados todavía.",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    } else {
+                                        devicesForChild.forEach { device ->
+                                            val suffix =
+                                                if (device.deviceId.isNotBlank())
+                                                    " (${device.deviceId.takeLast(4)})"
+                                                else
+                                                    ""
+
+                                            Text(
+                                                text = "• ${device.model.ifBlank { "Dispositivo" }}$suffix",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Row(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         TextButton(
@@ -146,6 +152,14 @@ fun CircleDetailScreen(
                                         ) {
                                             Text("Vincular dispositivo")
                                         }
+                                    }
+
+                                    TextButton(
+                                        onClick = {
+                                            onOpenChildDevices(child.id, child.name)
+                                        }
+                                    ) {
+                                        Text("Ver dispositivos de ${child.name}")
                                     }
                                 }
                             }

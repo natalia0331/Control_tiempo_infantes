@@ -3,6 +3,7 @@ package com.example.control_tiempo_infantes.features.circles
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.control_tiempo_infantes.domain.model.Child
+import com.example.control_tiempo_infantes.domain.model.Device
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,7 @@ import javax.inject.Inject
 data class CircleDetailUiState(
     val loading: Boolean = false,
     val children: List<Child> = emptyList(),
+    val devicesByChild: Map<String, List<Device>> = emptyMap(),
     val error: String? = null,
     val childCreated: Boolean = false,
     val lastGeneratedCode: String? = null
@@ -34,17 +36,14 @@ class CircleDetailViewModel @Inject constructor(
     fun init(circleId: String) {
         if (this.circleId == circleId && _uiState.value.children.isNotEmpty()) return
         this.circleId = circleId
-        loadChildren()
+        loadChildrenAndDevices()
     }
 
-    /**
-     * Permite refrescar manualmente la lista de infantes desde la UI.
-     */
-    fun refreshChildren() {
-        loadChildren()
+    fun refresh() {
+        loadChildrenAndDevices()
     }
 
-    private fun loadChildren() {
+    private fun loadChildrenAndDevices() {
         val id = circleId ?: return
 
         viewModelScope.launch {
@@ -55,6 +54,7 @@ class CircleDetailViewModel @Inject constructor(
                     childCreated = false
                 )
 
+                // 1. Cargar infantes del círculo
                 val snap = db.collection("children")
                     .whereEqualTo("circleId", id)
                     .get()
@@ -73,14 +73,44 @@ class CircleDetailViewModel @Inject constructor(
                     )
                 }
 
+                // 2. Cargar dispositivos por infante
+                val devicesByChild = mutableMapOf<String, List<Device>>()
+
+                for (child in children) {
+                    val devSnap = db.collection("devices")
+                        .whereEqualTo("childId", child.id)
+                        .get()
+                        .await()
+
+                    val devices = devSnap.documents.mapNotNull { d ->
+                        val devId = d.getString("id") ?: d.id
+                        val deviceId = d.getString("deviceId") ?: ""
+                        val model = d.getString("model") ?: ""
+                        val os = d.getString("androidVersion") ?: ""
+                        val createdAt = d.getLong("createdAt") ?: 0L
+
+                        Device(
+                            id = devId,
+                            childId = child.id,
+                            deviceId = deviceId,
+                            model = model,
+                            androidVersion = os,
+                            createdAt = createdAt
+                        )
+                    }
+
+                    devicesByChild[child.id] = devices
+                }
+
                 _uiState.value = _uiState.value.copy(
                     loading = false,
-                    children = children
+                    children = children,
+                    devicesByChild = devicesByChild
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = e.message ?: "Error cargando infantes."
+                    error = e.message ?: "Error cargando infantes y dispositivos."
                 )
             }
         }
@@ -134,8 +164,8 @@ class CircleDetailViewModel @Inject constructor(
 
                 doc.set(data).await()
 
-                // Recargar lista
-                loadChildren()
+                // Recargar todo
+                loadChildrenAndDevices()
 
                 _uiState.value = _uiState.value.copy(
                     loading = false,
@@ -154,9 +184,6 @@ class CircleDetailViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(childCreated = false)
     }
 
-    /**
-     * Genera un código temporal para vincular dispositivos del infante.
-     */
     fun generateLinkCode(childId: String) {
         viewModelScope.launch {
             try {

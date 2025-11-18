@@ -36,6 +36,8 @@ import com.example.control_tiempo_infantes.features.home.HomeScreen
 import com.example.control_tiempo_infantes.features.link.LinkDeviceScreen
 import com.example.control_tiempo_infantes.features.link.LinkDeviceViewModel
 import com.example.control_tiempo_infantes.ui.theme.Control_tiempo_infantesTheme
+import com.example.control_tiempo_infantes.features.devices.ChildDevicesScreen
+import com.example.control_tiempo_infantes.features.devices.DevicesViewModel
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.runtime.LaunchedEffect
@@ -200,7 +202,9 @@ class MainActivity : ComponentActivity() {
                         }
 
 
-                        // Detalle de círculo
+                        // Dentro del NavHost en MainActivity
+
+                        // Detalle círculo
                         composable("circleDetail/{circleId}") { entry ->
                             val circleId = entry.arguments?.getString("circleId") ?: return@composable
                             val vm: CircleDetailViewModel = hiltViewModel()
@@ -216,20 +220,28 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onOpenLinkDevice = { childId ->
                                     nav.navigate("linkDevice/$childId")
+                                },
+                                onOpenChildDevices = { childId, childName ->
+                                    nav.navigate("childDevices/$childId/$childName")
                                 }
                             )
                         }
 
-                        // Registrar infante en círculo
-                        composable("addChild/{circleId}") { entry ->
-                            val circleId = entry.arguments?.getString("circleId") ?: return@composable
-                            val vm: CircleDetailViewModel = hiltViewModel()
-                            AddChildScreen(
+
+                        composable("childDevices/{childId}/{childName}") { entry ->
+                            val childId = entry.arguments?.getString("childId") ?: return@composable
+                            val childName = entry.arguments?.getString("childName") ?: "Infante"
+
+                            val vm: DevicesViewModel = hiltViewModel()
+                            ChildDevicesScreen(
                                 vm = vm,
-                                circleId = circleId,
+                                childId = childId,
+                                childName = childName,
                                 onBack = { nav.popBackStack() }
                             )
                         }
+
+
 
                         // Invitar miembro (supervisor)
                         composable("inviteMember/{circleId}") { entry ->

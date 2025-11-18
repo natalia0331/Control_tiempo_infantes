@@ -3,7 +3,6 @@ package com.example.control_tiempo_infantes.features.link
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,8 +12,8 @@ import javax.inject.Inject
 
 data class LinkDeviceUiState(
     val loading: Boolean = false,
-    val error: String? = null,
-    val success: Boolean = false
+    val success: Boolean = false,
+    val error: String? = null
 )
 
 @HiltViewModel
@@ -25,98 +24,114 @@ class LinkDeviceViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LinkDeviceUiState())
     val uiState: StateFlow<LinkDeviceUiState> = _uiState
 
-    /**
-     * Vincula ESTE dispositivo (deviceId) a un infante usando un código temporal.
-     *
-     * - Un mismo infante puede tener VARIOS dispositivos.
-     * - Cada dispositivo queda registrado en:
-     *   children/{childId}/devices/{deviceId}
-     */
-    fun linkDevice(code: String, childId: String, deviceId: String) {
-        if (code.isBlank()) {
-            _uiState.value = LinkDeviceUiState(error = "Ingresa el código.")
-            return
-        }
-
-        if (deviceId.isBlank()) {
-            _uiState.value = LinkDeviceUiState(error = "No se pudo detectar el dispositivo.")
-            return
-        }
-
-        if (childId.isBlank()) {
-            _uiState.value = LinkDeviceUiState(error = "Infante no válido.")
-            return
-        }
-
+    fun linkDevice(
+        code: String,
+        deviceId: String,
+        model: String,
+        androidVersion: String
+    ) {
         viewModelScope.launch {
+            if (code.isBlank()) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Ingresa un código válido."
+                )
+                return@launch
+            }
+
             try {
                 _uiState.value = LinkDeviceUiState(loading = true)
 
-                val normalizedCode = code.trim()
-                val ref = db.collection("link_requests").document(normalizedCode)
-                val snap = ref.get().await()
-
-                if (!snap.exists()) {
-                    _uiState.value = LinkDeviceUiState(
-                        loading = false,
-                        error = "Código inválido."
-                    )
-                    return@launch
-                }
-
-                val used = snap.getBoolean("used") ?: false
-                val expiresAt = snap.getLong("expiresAt") ?: 0L
-                val storedChildId = snap.getString("childId")
                 val now = System.currentTimeMillis()
 
-                if (used || now > expiresAt || storedChildId != childId) {
+                val linkRef = db.collection("link_requests").document(code)
+                val linkSnap = linkRef.get().await()
+
+                if (!linkSnap.exists()) {
                     _uiState.value = LinkDeviceUiState(
                         loading = false,
-                        error = "Código expirado, usado o no corresponde a este infante."
+                        success = false,
+                        error = "Código no encontrado."
                     )
                     return@launch
                 }
 
-                // Registrar o actualizar el dispositivo para este infante
-                val deviceDoc = db.collection("children")
-                    .document(childId)
-                    .collection("devices")
-                    .document(deviceId)
+                val used = linkSnap.getBoolean("used") ?: false
+                val expiresAt = linkSnap.getLong("expiresAt") ?: 0L
+                val childId = linkSnap.getString("childId") ?: ""
 
+                if (childId.isBlank()) {
+                    _uiState.value = LinkDeviceUiState(
+                        loading = false,
+                        success = false,
+                        error = "El código no tiene infante asociado."
+                    )
+                    return@launch
+                }
+
+                if (used) {
+                    _uiState.value = LinkDeviceUiState(
+                        loading = false,
+                        success = false,
+                        error = "Este código ya fue utilizado."
+                    )
+                    return@launch
+                }
+
+                if (expiresAt < now) {
+                    _uiState.value = LinkDeviceUiState(
+                        loading = false,
+                        success = false,
+                        error = "El código ha expirado."
+                    )
+                    return@launch
+                }
+
+                val childSnap = db.collection("children")
+                    .document(childId)
+                    .get()
+                    .await()
+
+                val circleId = childSnap.getString("circleId") ?: ""
+
+                val deviceDoc = db.collection("devices").document()
                 val deviceData = hashMapOf(
-                    "id" to deviceId,
+                    "id" to deviceDoc.id,
                     "childId" to childId,
-                    "platform" to "android",
-                    "name" to "", // nombre amigable opcional
+                    "circleId" to circleId,
+                    "deviceId" to deviceId,
+                    "model" to model,
+                    "androidVersion" to androidVersion,
                     "createdAt" to now,
-                    "lastSeenAt" to now
+                    "lastSyncAt" to 0L
                 )
 
-                deviceDoc.set(deviceData, SetOptions.merge()).await()
-
-                // Marcar el código como usado
-                ref.update(
-                    mapOf(
-                        "used" to true,
-                        "usedAt" to now,
-                        "deviceId" to deviceId
+                db.runBatch { batch ->
+                    batch.set(deviceDoc, deviceData)
+                    batch.update(
+                        linkRef,
+                        mapOf(
+                            "used" to true,
+                            "usedAt" to now
+                        )
                     )
-                ).await()
+                }.await()
 
                 _uiState.value = LinkDeviceUiState(
                     loading = false,
-                    success = true
+                    success = true,
+                    error = null
                 )
             } catch (e: Exception) {
                 _uiState.value = LinkDeviceUiState(
                     loading = false,
-                    error = e.message ?: "Error al vincular dispositivo."
+                    success = false,
+                    error = e.message ?: "Error al vincular el dispositivo."
                 )
             }
         }
     }
 
-    fun resetSuccess() {
+    fun consumeSuccess() {
         _uiState.value = _uiState.value.copy(success = false)
     }
 
